@@ -1,0 +1,23 @@
+keycloak:
+  app-base-url: http://localhost:${server.port}
+  host: localhost
+  realm: myapp-realm
+  login-url: ${keycloak.app-base-url}/oauth2/authorization/${keycloak.registration}
+  server-url: http://${keycloak.host}:8080
+  registration: myapp
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          myapp:
+            client-secret: IbaL0FOc0Dq6gYPnX5VZa0XanIg8i7AY
+            scope: openid,roles,profile,email
+            authorization-grant-type: authorization_code
+            provider: ${keycloak.registration}
+            redirect-uri: ${keycloak.app-base-url}/login/oauth2/code/${keycloak.registration}
+            client-id: myapp
+        provider:
+          myapp:
+            issuer-uri: ${keycloak.server-url}/realms/${keycloak.realm}

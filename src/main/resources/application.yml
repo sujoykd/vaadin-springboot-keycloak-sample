@@ -1,0 +1,17 @@
+server:
+  port: ${PORT:8081}
+
+spring:
+  profiles:
+    active: @spring.profiles.active@
+  mustache:
+    check-template-location: false
+
+vaadin:
+  launch-browser: false
+
+
+logging:
+  level:
+    ROOT: warn
+    org.atmosphere: warn

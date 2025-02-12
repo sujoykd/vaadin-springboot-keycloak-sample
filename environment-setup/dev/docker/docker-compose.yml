@@ -1,0 +1,117 @@
+name: ${APP_NAME}_vaadin
+
+networks:
+  local:
+    driver: bridge
+
+volumes:
+  dbdata:
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    ports:
+      - ${POSTGRES_PORT}:5432
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./initdb/:/docker-entrypoint-initdb.d/
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - APPLICATION_DB=${APPLICATION_DB}
+      - APPLICATION_USER=${APPLICATION_USER}
+      - APPLICATION_PASSWORD=${APPLICATION_PASSWORD}
+      - KC_DB_NAME=${KC_DB_NAME}
+      - KC_DB_USERNAME=${KC_DB_USERNAME}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "postgres_db" ]
+    container_name: ${APP_NAME}_db
+    networks:
+      - local
+  keycloak:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_DB: ${KC_DB}
+      KC_DB_URL: ${KC_DB_URL}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+    volumes:
+      - ./keycloak/quarkus.properties:/opt/keycloak/conf/quarkus.properties
+      - ./keycloak/HealthCheck.java:/tmp/HealthCheck.java
+      - ./keycloak/${KC_REALM_NAME}.json:/opt/keycloak/data/import/${KC_REALM_NAME}.json
+    command:
+      start-dev --health-enabled=true --import-realm
+    healthcheck:
+      test: [ 'CMD-SHELL', "java /tmp/HealthCheck.java http://localhost:${KC_PORT}/health/ready" ]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ports:
+      - ${KC_PORT}:8080
+    networks:
+      - local
+    container_name: ${APP_NAME}_keycloak
+  keycloak-debug:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_DB: ${KC_DB}
+      KC_DB_URL: ${KC_DB_URL}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      DEBUG_PORT: "*:8787"
+      KC_DEBUG_PORT: "*:8787"
+    volumes:
+      - ./keycloak/quarkus.properties:/opt/keycloak/conf/quarkus.properties
+      - ./keycloak/HealthCheck.java:/tmp/HealthCheck.java
+      - ./keycloak/${KC_REALM_NAME}.json:/opt/keycloak/data/import/${KC_REALM_NAME}.json
+    command:
+      start-dev --health-enabled=true --import-realm --log-level=WARN,org.keycloak.social.user_profile_dump:DEBUG,io.waxcode:TRACE,org.keycloak.transaction.JtaTransactionWrapper:ERROR,org.keycloak.services.scheduled.ScheduledTaskRunner:ERROR --debug --spi-theme-static-max-age=-1 --spi-theme-cache-themes=false --spi-theme-cache-templates=false
+    healthcheck:
+      test: [ 'CMD-SHELL', "java /tmp/HealthCheck.java https://localhost:${KC_PORT}/health/ready" ]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ports:
+      - ${KC_PORT}:8080
+      - 8787:8787
+    networks:
+      - local
+    container_name: ${APP_NAME}_keycloak_debug
+    profiles: [ "debug" ]
+  keycloak-export:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_DB: ${KC_DB}
+      KC_DB_URL: ${KC_DB_URL}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+    volumes:
+      - ./keycloak/quarkus.properties:/opt/keycloak/conf/quarkus.properties
+      - ./keycloak/:/tmp/export/
+    command: export --file /tmp/export/${KC_REALM_NAME}.json --realm ${KC_REALM_NAME} --users realm_file
+    networks:
+      - local
+    container_name: ${APP_NAME}_keycloak_export
+    profiles: [ "export" ]
