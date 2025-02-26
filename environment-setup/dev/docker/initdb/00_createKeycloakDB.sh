@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-pushd /docker-entrypoint-initdb.d/keycloak
+pushd /docker-entrypoint-initdb.d/keycloak || exit
 
 psql -U ${POSTGRES_USER}  -v "keycloak_db=${KC_DB_NAME}" \
                           -v "keycloak_user=${KC_DB_USERNAME}" \
