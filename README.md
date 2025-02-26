@@ -19,7 +19,7 @@ Run the docker container.
 
 ```
 cd environment-setup/dev/docker/
-docker-compose up -d --wait
+docker compose up -d --wait
 ```
 
 Run the application in your IDE by running the `Application.java`
